@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <QFile>
+#include <QMatrix4x4>
 #include <QObject>
 #include <QOpenGLBuffer>
 #include <QOpenGLFunctions_4_0_Core>
@@ -36,7 +37,7 @@ public:
     /**
      * @brief Renders the BSP level
      */
-    void render();
+    void render(QMatrix4x4 &modelView, QMatrix4x4 &projection);
 
 private:
     /**

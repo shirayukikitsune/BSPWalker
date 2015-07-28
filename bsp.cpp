@@ -132,7 +132,7 @@ void BSP::releaseMap()
     indexes.clear();
 }
 
-void BSP::render()
+void BSP::render(QMatrix4x4 &modelView, QMatrix4x4 &projection)
 {
     // Resets the drawn faces bitset
     for(auto i = drawnFaces.begin(); i != drawnFaces.end(); ++i) {
@@ -155,6 +155,10 @@ void BSP::render()
     shaderProgram->enableAttributeArray("vColor");
     shaderProgram->setAttributeBuffer("vColor", GL_FLOAT, offsetof(drawVert_t, color), 4, sizeof(drawVert_t));
 
+    shaderProgram->setUniformValue("modelView", modelView);
+    shaderProgram->setUniformValue("normalMatrix", modelView.normalMatrix());
+    shaderProgram->setUniformValue("projectionMatrix", projection);
+
     vboIndexes->bind();
 
     while (--i > 0) {
@@ -164,8 +168,9 @@ void BSP::render()
         if (drawnFaces[i] == true) continue;
 
         drawnFaces[i] = true;
-        glDrawRangeElements(GL_TRIANGLES, surfaces[i].firstIndex, surfaces[i].firstIndex + surfaces[i].numIndexes, surfaces[i].numIndexes / 3, GL_UNSIGNED_INT, 0);
+        glDrawRangeElements(GL_TRIANGLES, surfaces[i].firstIndex, surfaces[i].firstIndex + surfaces[i].numIndexes, surfaces[i].numIndexes, GL_UNSIGNED_INT, (static_cast<char*>(0) + (surfaces[i].firstIndex)));
     }
+
 
     vboIndexes->release();
     vboVertices->release();
@@ -257,7 +262,7 @@ void BSP::parseMapData()
     vboIndexes->bind();
     vboIndexes->setUsagePattern(QOpenGLBuffer::StaticDraw);
     vboIndexes->allocate(indexes.data(), indexes.size() * sizeof(int));
-    indexes.clear();
+    //indexes.clear();
 
     vertexInfo->release();
 }

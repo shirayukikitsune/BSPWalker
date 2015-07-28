@@ -2,6 +2,8 @@
 
 #include <iostream>
 #include <QFileDialog>
+#include <QKeyEvent>
+#include <QMouseEvent>
 
 OpenGLWidget::OpenGLWidget(QWidget *parent)
     : QOpenGLWidget(parent)
@@ -24,6 +26,9 @@ void OpenGLWidget::initializeGL()
 
 void OpenGLWidget::resizeGL(int w, int h)
 {
+    projection.setToIdentity();
+    projection.perspective(60.0f, (float)w / (float)h, 0.1f, 1000.0f);
+
     update();
 }
 
@@ -34,9 +39,21 @@ void OpenGLWidget::paintGL()
 
     makeCurrent();
 
+    modelView.setToIdentity();
+    modelView.lookAt(camera.eye, camera.at, camera.up);
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    bsp->render();
+    bsp->render(modelView, projection);
+}
+
+void OpenGLWidget::mouseMoveEvent(QMouseEvent *event)
+{
+}
+
+void OpenGLWidget::keyPressEvent(QKeyEvent *event)
+{
+
 }
 
 void OpenGLWidget::loadBSP()
