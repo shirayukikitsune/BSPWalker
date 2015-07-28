@@ -5,6 +5,7 @@
 
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions>
+#include <QTimer>
 
 class OpenGLWidget : public QOpenGLWidget, private QOpenGLFunctions
 {
@@ -16,9 +17,13 @@ public:
 protected:
     void initializeGL();
     void resizeGL(int w, int h);
+    void paintGL();
+
+    virtual void mouseMoveEvent(QMouseEvent *event);
 
 private:
     BSP *bsp;
+    QTimer timer;
 
 public slots:
     void loadBSP();

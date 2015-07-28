@@ -5,21 +5,38 @@
 
 #include <vector>
 
-#include <QObject>
-#include <QString>
 #include <QFile>
+#include <QObject>
+#include <QOpenGLBuffer>
+#include <QOpenGLFunctions_4_0_Core>
+#include <QOpenGLShader>
+#include <QOpenGLShaderProgram>
+#include <QOpenGLTexture>
+#include <QOpenGLVertexArrayObject>
+#include <QString>
 
-class BSP : public QObject
+class BSP : public QObject, private QOpenGLFunctions_4_0_Core
 {
     Q_OBJECT
 
 public:
     BSP();
+    ~BSP();
 
     /**
      * @brief Loads a BSP map from the specified filename
      */
     void loadMap(const QString& file);
+
+    /**
+     * @brief Unloads the BSP map and release all associated resources
+     */
+    void releaseMap();
+
+    /**
+     * @brief Renders the BSP level
+     */
+    void render();
 
 private:
     /**
@@ -99,6 +116,16 @@ private:
         return true;
     }
 
+    /**
+     * @brief Initializes the OpenGL functions
+     */
+    void initializeGL();
+
+    /**
+     * @brief Release all used shaders
+     */
+    void releaseShaders();
+
     std::vector<dshader_t> shaders;
     std::vector<dleaf_t> leafs;
     std::vector<int> leafBrushes;
@@ -110,7 +137,22 @@ private:
     std::vector<dnode_t> nodes;
     std::vector<char> entityString;
     std::vector<dsurface_t> surfaces;
-    std::vector<drawVert_t> vertices;
+    std::vector<dvert_t> vertexData;
+    std::vector<int> indexes;
+
+    QOpenGLShaderProgram *shaderProgram;
+    QOpenGLShader *vertexShader;
+    QOpenGLShader *fragmentShader;
+
+    /**
+     * @brief Stores the rendered faces
+     * This is used to optimize the rendering process. During the BSP rendering, a face might be rendered twice. Needed for VIS
+     */
+    std::vector<bool> drawnFaces;
+    std::vector<QOpenGLTexture*> textures;
+    QOpenGLVertexArrayObject *vertexInfo;
+    QOpenGLBuffer *vboVertices;
+    QOpenGLBuffer *vboIndexes;
 
     unsigned checksum;
 

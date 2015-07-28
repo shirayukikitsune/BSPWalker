@@ -16,11 +16,18 @@ CONFIG += c++11
 SOURCES += main.cpp\
         mainwindow.cpp \
     openglwidget.cpp \
-    bsp.cpp
+    bsp.cpp \
+    camera.cpp
 
 HEADERS  += mainwindow.h \
     openglwidget.h \
     bspdefs.h \
-    bsp.h
+    bsp.h \
+    camera.h
 
 FORMS    += mainwindow.ui
+
+RESOURCES += \
+    bspwalker.qrc
+
+DISTFILES +=

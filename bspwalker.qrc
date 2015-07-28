@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>shaders/bsp.frag</file>
+        <file>shaders/bsp.vert</file>
+    </qresource>
+</RCC>

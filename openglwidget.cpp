@@ -1,5 +1,6 @@
 #include "openglwidget.h"
 
+#include <iostream>
 #include <QFileDialog>
 
 OpenGLWidget::OpenGLWidget(QWidget *parent)
@@ -11,11 +12,31 @@ OpenGLWidget::OpenGLWidget(QWidget *parent)
 void OpenGLWidget::initializeGL()
 {
     initializeOpenGLFunctions();
+
+    std::cout << "GL Version " << glGetString(GL_VERSION) << "\n";
+    std::cout << "GLSL " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+
+    connect(&timer, SIGNAL(timeout()), this, SLOT(update()));
+    timer.start(0);
+
+    glEnable(GL_DEPTH_TEST);
 }
 
 void OpenGLWidget::resizeGL(int w, int h)
 {
     update();
+}
+
+void OpenGLWidget::paintGL()
+{
+    if (!bsp)
+        return;
+
+    makeCurrent();
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    bsp->render();
 }
 
 void OpenGLWidget::loadBSP()
@@ -28,6 +49,7 @@ void OpenGLWidget::loadBSP()
     if (bsp)
         delete bsp;
 
+    makeCurrent();
     bsp = new BSP();
     connect(bsp, SIGNAL(loadError(QString)), this, SLOT(bspError(QString)));
     bsp->loadMap(fileName);

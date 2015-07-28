@@ -2,7 +2,9 @@
 #define BSPDEFS_H
 
 #include <QColor>
+#include <QVector2D>
 #include <QVector3D>
+#include <QVector4D>
 
 // Extracted from https://github.com/darklegion/tremulous/blob/1ba4af154e471e3e00890bf034fc8dde410d951e/src/qcommon/qfiles.h
 
@@ -147,6 +149,14 @@ typedef struct {
     float		lightmap[2];
     QVector3D	normal;
     unsigned char color[4];
+} dvert_t;
+
+typedef struct {
+    QVector4D   position;
+    QVector4D   texCoord;
+    QVector4D   lightmapCoord;
+    QVector4D   normal;
+    QColor      color;
 } drawVert_t;
 
 #define drawVert_t_cleared(x) drawVert_t (x) = {{0, 0, 0}, {0, 0}, {0, 0}, {0, 0, 0}, {0, 0, 0, 0}}
