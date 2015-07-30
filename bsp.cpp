@@ -91,6 +91,12 @@ void BSP::loadMap(const QString &file)
 
 void BSP::releaseMap()
 {
+    destroyVBO();
+    destroyLumpData();
+}
+
+void BSP::destroyVBO()
+{
     if (vboIndexes) {
         vboIndexes->release();
         vboIndexes->destroy();
@@ -119,7 +125,10 @@ void BSP::releaseMap()
     }
     textures.clear();
     drawnFaces.clear();
+}
 
+void BSP::destroyLumpData()
+{
     shaders.clear();
     leafs.clear();
     leafBrushes.clear();
@@ -232,11 +241,12 @@ void BSP::parseMapData()
     std::for_each(vertexData.begin(), vertexData.end(), [&vertices, &i, size, &center](dvert_t &data) {
         // Adjust the BSP vertex position: BSP Z is GLSL Y and BSP -Y is GLSL Z
         vertices[i].position = QVector3D(data.position[0], data.position[2], -data.position[1]);
-        center = center + (vertices[i].position / size);
         vertices[i].texCoord = QVector2D(data.textureCoords[0], data.textureCoords[1]);
         vertices[i].lightmapCoord = QVector2D(data.lightmap[0], data.lightmap[1]);
         vertices[i].normal = QVector3D(data.normal[0], data.normal[1], data.normal[2]);
         vertices[i].color = QVector4D(data.color[0], data.color[1], data.color[2], data.color[3]) / 255;
+
+        center = center + (vertices[i].position / size);
         ++i;
     });
     this->center = center;
@@ -284,7 +294,6 @@ void BSP::parseMapData()
     vboIndexes->bind();
     vboIndexes->setUsagePattern(QOpenGLBuffer::StreamDraw);
     vboIndexes->allocate(indexes.data(), indexes.size() * sizeof(int));
-    indexes.clear();
 }
 
 unsigned BSP::blockChecksum(const char *buffer, int length)

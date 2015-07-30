@@ -45,6 +45,8 @@ public:
     QVector3D getCenter() { return center; }
 
 private:
+    void destroyVBO();
+    void destroyLumpData();
     /**
      * @brief Calculates the checksum of the block having the specified length
      */
