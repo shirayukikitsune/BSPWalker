@@ -87,6 +87,8 @@ void BSP::loadMap(const QString &file)
     f.close();
 
     parseMapData();
+
+    destroyLumpData();
 }
 
 void BSP::releaseMap()
