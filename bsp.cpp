@@ -3,6 +3,7 @@
 #include "bspdefs.h"
 
 #include <algorithm>
+#include <iostream>
 
 #include <QCryptographicHash>
 #include <QFile>
@@ -28,8 +29,10 @@ BSP::~BSP()
 
 void BSP::initializeGL()
 {
-    if (!initializeOpenGLFunctions())
+    if (!initializeOpenGLFunctions()) {
         qWarning() << "Unable to initialize OpenGL 4.0 Core profile" << endl;
+        return;
+    }
 
     vertexShader = new QOpenGLShader(QOpenGLShader::Vertex);
     if (!vertexShader->compileSourceFile(":/shaders/bsp.vert"))
@@ -132,7 +135,7 @@ void BSP::releaseMap()
     indexes.clear();
 }
 
-void BSP::render(QMatrix4x4 &modelView, QMatrix4x4 &projection)
+void BSP::render(QMatrix4x4 modelView, QMatrix4x4 projection)
 {
     // Resets the drawn faces bitset
     for(auto i = drawnFaces.begin(); i != drawnFaces.end(); ++i) {
@@ -141,24 +144,12 @@ void BSP::render(QMatrix4x4 &modelView, QMatrix4x4 &projection)
 
     int i = (int)surfaces.size();
 
-    vertexInfo->bind();
     shaderProgram->bind();
-    vboVertices->bind();
-    shaderProgram->enableAttributeArray("vPosition");
-    shaderProgram->setAttributeBuffer("vPosition", GL_FLOAT, offsetof(drawVert_t, position), 4, sizeof(drawVert_t));
-    shaderProgram->enableAttributeArray("vTexCoord");
-    shaderProgram->setAttributeBuffer("vTexCoord", GL_FLOAT, offsetof(drawVert_t, texCoord), 2, sizeof(drawVert_t));
-    shaderProgram->enableAttributeArray("vLightmapCoord");
-    shaderProgram->setAttributeBuffer("vLightmapCoord", GL_FLOAT, offsetof(drawVert_t, lightmapCoord), 2, sizeof(drawVert_t));
-    shaderProgram->enableAttributeArray("vNormal");
-    shaderProgram->setAttributeBuffer("vNormal", GL_FLOAT, offsetof(drawVert_t, lightmapCoord), 4, sizeof(drawVert_t));
-    shaderProgram->enableAttributeArray("vColor");
-    shaderProgram->setAttributeBuffer("vColor", GL_FLOAT, offsetof(drawVert_t, color), 4, sizeof(drawVert_t));
-
     shaderProgram->setUniformValue("modelView", modelView);
     shaderProgram->setUniformValue("normalMatrix", modelView.normalMatrix());
     shaderProgram->setUniformValue("projectionMatrix", projection);
 
+    vertexInfo->bind();
     vboIndexes->bind();
 
     while (--i > 0) {
@@ -167,15 +158,15 @@ void BSP::render(QMatrix4x4 &modelView, QMatrix4x4 &projection)
         // Check if this surface was rendered
         if (drawnFaces[i] == true) continue;
 
+        dsurface_t &surface = surfaces[i];
         drawnFaces[i] = true;
-        glDrawRangeElements(GL_TRIANGLES, surfaces[i].firstIndex, surfaces[i].firstIndex + surfaces[i].numIndexes, surfaces[i].numIndexes, GL_UNSIGNED_INT, (static_cast<char*>(0) + (surfaces[i].firstIndex)));
+        glDrawElements(GL_TRIANGLES, surface.numIndexes, GL_UNSIGNED_INT, reinterpret_cast<void*>(surface.firstIndex * sizeof(GLuint)));
     }
 
-
     vboIndexes->release();
-    vboVertices->release();
-    shaderProgram->release();
     vertexInfo->release();
+
+    shaderProgram->release();
 }
 
 bool BSP::internalLoadMap(QFile &file)
@@ -219,9 +210,9 @@ bool BSP::internalLoadMap(QFile &file)
         return false;
     if (!loadLump<char>(file, header->lumps[LUMP_ENTITIES], entityString))
         return false;
-    if (!loadNotEmptyLump<dsurface_t>(file, header->lumps[LUMP_SURFACES], surfaces))
+    if (!loadLump<dsurface_t>(file, header->lumps[LUMP_SURFACES], surfaces))
         return false;
-    if (!loadNotEmptyLump<dvert_t>(file, header->lumps[LUMP_DRAWVERTS], vertexData))
+    if (!loadLump<dvert_t>(file, header->lumps[LUMP_DRAWVERTS], vertexData))
         return false;
     if (!loadLump<int>(file, header->lumps[LUMP_DRAWINDEXES], indexes))
         return false;
@@ -233,17 +224,22 @@ void BSP::parseMapData()
 {
     drawnFaces.resize(surfaces.size());
 
-    drawVert_t *vertices = new drawVert_t[vertexData.size()];
+    int size = vertexData.size();
+    drawVert_t *vertices = new drawVert_t[size];
     int i = 0;
+    QVector3D center;
     // Convert from BSP dvert_t to a shader-friendly drawVert_t
-    std::for_each(vertexData.begin(), vertexData.end(), [&vertices, &i](dvert_t &data) {
-        vertices[i].position = QVector4D(data.xyz[0], data.xyz[2], -data.xyz[1], 1.0);
-        vertices[i].texCoord = QVector2D(data.st[0], data.st[1]);
+    std::for_each(vertexData.begin(), vertexData.end(), [&vertices, &i, size, &center](dvert_t &data) {
+        // Adjust the BSP vertex position: BSP Z is GLSL Y and BSP -Y is GLSL Z
+        vertices[i].position = QVector3D(data.position[0], data.position[2], -data.position[1]);
+        center = center + (vertices[i].position / size);
+        vertices[i].texCoord = QVector2D(data.textureCoords[0], data.textureCoords[1]);
         vertices[i].lightmapCoord = QVector2D(data.lightmap[0], data.lightmap[1]);
-        vertices[i].normal = QVector4D(data.normal, 0.0);
-        vertices[i].color.setRgb(data.color[0], data.color[1], data.color[2], data.color[3]);
+        vertices[i].normal = QVector3D(data.normal[0], data.normal[1], data.normal[2]);
+        vertices[i].color = QVector4D(data.color[0], data.color[1], data.color[2], data.color[3]) / 255;
         ++i;
     });
+    this->center = center;
     vertexData.clear();
 
     vertexInfo = new QOpenGLVertexArrayObject;
@@ -253,18 +249,42 @@ void BSP::parseMapData()
     vboVertices = new QOpenGLBuffer(QOpenGLBuffer::VertexBuffer);
     vboVertices->create();
     vboVertices->bind();
-    vboVertices->setUsagePattern(QOpenGLBuffer::StaticDraw);
-    vboVertices->allocate(vertices, i * sizeof(drawVert_t));
+    vboVertices->setUsagePattern(QOpenGLBuffer::StreamDraw);
+    vboVertices->allocate(vertices, size * sizeof(drawVert_t));
     delete[] vertices;
+
+    shaderProgram->bind();
+
+    vboVertices->bind();
+
+    int attribute = shaderProgram->attributeLocation("vPosition");
+    shaderProgram->enableAttributeArray(attribute);
+    shaderProgram->setAttributeBuffer(attribute, GL_FLOAT, offsetof(drawVert_t, position), 3, sizeof(drawVert_t));
+
+    attribute = shaderProgram->attributeLocation("vTexCoord");
+    shaderProgram->enableAttributeArray(attribute);
+    shaderProgram->setAttributeBuffer(attribute, GL_FLOAT, offsetof(drawVert_t, texCoord), 2, sizeof(drawVert_t));
+
+    attribute = shaderProgram->attributeLocation("vLightmapCoord");
+    shaderProgram->enableAttributeArray(attribute);
+    shaderProgram->setAttributeBuffer(attribute, GL_FLOAT, offsetof(drawVert_t, lightmapCoord), 2, sizeof(drawVert_t));
+
+    attribute = shaderProgram->attributeLocation("vNormal");
+    shaderProgram->enableAttributeArray(attribute);
+    shaderProgram->setAttributeBuffer(attribute, GL_FLOAT, offsetof(drawVert_t, normal), 3, sizeof(drawVert_t));
+
+    attribute = shaderProgram->attributeLocation("vColor");
+    shaderProgram->enableAttributeArray(attribute);
+    shaderProgram->setAttributeBuffer(attribute, GL_FLOAT, offsetof(drawVert_t, color), 4, sizeof(drawVert_t));
+
+    vertexInfo->release();
 
     vboIndexes = new QOpenGLBuffer(QOpenGLBuffer::IndexBuffer);
     vboIndexes->create();
     vboIndexes->bind();
-    vboIndexes->setUsagePattern(QOpenGLBuffer::StaticDraw);
+    vboIndexes->setUsagePattern(QOpenGLBuffer::StreamDraw);
     vboIndexes->allocate(indexes.data(), indexes.size() * sizeof(int));
-    //indexes.clear();
-
-    vertexInfo->release();
+    indexes.clear();
 }
 
 unsigned BSP::blockChecksum(const char *buffer, int length)

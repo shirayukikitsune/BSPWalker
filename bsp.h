@@ -37,7 +37,12 @@ public:
     /**
      * @brief Renders the BSP level
      */
-    void render(QMatrix4x4 &modelView, QMatrix4x4 &projection);
+    void render(QMatrix4x4 modelView, QMatrix4x4 projection);
+
+    /**
+     * @brief Returns the center of the level
+     */
+    QVector3D getCenter() { return center; }
 
 private:
     /**
@@ -155,6 +160,7 @@ private:
     QOpenGLBuffer *vboVertices;
     QOpenGLBuffer *vboIndexes;
 
+    QVector3D center;
     unsigned checksum;
 
 signals:

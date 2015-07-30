@@ -8,6 +8,9 @@
 
 // Extracted from https://github.com/darklegion/tremulous/blob/1ba4af154e471e3e00890bf034fc8dde410d951e/src/qcommon/qfiles.h
 
+// Force alignment of 1 byte on structs
+#pragma pack(push, 1)
+
 #define MAX_QPATH 64
 
 #define BSP_IDENT (('P'<<24)+('S'<<16)+('B'<<8)+'I')
@@ -144,19 +147,19 @@ typedef struct {
 } dfog_t;
 
 typedef struct {
-    QVector3D	xyz;
-    float		st[2];
-    float		lightmap[2];
-    QVector3D	normal;
-    unsigned char color[4];
+    float           position[3];
+    float           textureCoords[2];
+    float           lightmap[2];
+    float           normal[3];
+    unsigned char   color[4];
 } dvert_t;
 
 typedef struct {
-    QVector4D   position;
-    QVector4D   texCoord;
-    QVector4D   lightmapCoord;
-    QVector4D   normal;
-    QColor      color;
+    QVector3D   position;
+    QVector2D   texCoord;
+    QVector2D   lightmapCoord;
+    QVector3D   normal;
+    QVector4D   color;
 } drawVert_t;
 
 #define drawVert_t_cleared(x) drawVert_t (x) = {{0, 0, 0}, {0, 0}, {0, 0}, {0, 0, 0}, {0, 0, 0, 0}}
@@ -184,13 +187,16 @@ typedef struct {
     int			lightmapX, lightmapY;
     int			lightmapWidth, lightmapHeight;
 
-    QVector3D	lightmapOrigin;
-    QVector3D   lightmapVecs[3];	// for patches, [0] and [1] are lodbounds
+    float   	lightmapOrigin[3];
+    float       lightmapVecs[2][3];	// for patches, [0] and [1] are lodbounds
+    float       normal[3];
 
     int			patchWidth;
     int			patchHeight;
 } dsurface_t;
 
+// Disable alignment options
+#pragma pack(pop)
 
 #endif // BSPDEFS_H
 

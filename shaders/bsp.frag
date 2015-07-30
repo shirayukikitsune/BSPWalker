@@ -1,19 +1,15 @@
 #version 400
 
-struct FragmentInfo {
-    vec3 normal;
-    vec3 eyeDirection;
-    vec3 lightDirection;
-    vec2 texCoord;
-    vec2 lightmapCoord;
-    vec4 color;
-};
+in vec3 fN;
+in vec3 fE;
+in vec3 fL;
+in vec2 fTexCoord;
+in vec2 fLightmap;
+in vec4 fColor;
 
-in FragmentInfo fData;
-
-out vec4 fColor;
+out vec4 outColor;
 
 void main(void)
 {
-    fColor = vec4(1.0);
+    outColor = fColor;
 }
