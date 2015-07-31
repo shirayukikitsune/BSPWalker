@@ -11,5 +11,5 @@ out vec4 outColor;
 
 void main(void)
 {
-    outColor = fColor;
+    outColor = vec4(1.0);
 }

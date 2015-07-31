@@ -29,10 +29,10 @@ void OpenGLWidget::resizeGL(int w, int h)
     glViewport(0, 0, w, h);
 
     projection.setToIdentity();
-    projection.perspective(60.0f, (float)w / (float)h, 0.1f, 10000.0f);
+    projection.perspective(45.0f, (float)w / (float)h, 0.1f, 10000.0f);
+    //projection.ortho(0, 1000, 0, 100, 0.01f, 5000.0f);
 
     QPointF screenCenter(w / 2, h / 2);
-    camera.beginMouseTrack(screenCenter);
 
     update();
 }
@@ -49,20 +49,11 @@ void OpenGLWidget::paintGL()
     bsp->render(camera.getView(), projection);
 }
 
-void OpenGLWidget::mousePressEvent(QMouseEvent *event)
-{
-    //if (event->button() & Qt::LeftButton)
-     //   camera.beginMouseTrack(event->localPos());
-}
-
-void OpenGLWidget::mouseReleaseEvent(QMouseEvent *event)
-{
-    //if (event->button() & Qt::LeftButton)
-      ///  camera.endMouseTrack();
-}
-
 void OpenGLWidget::mouseMoveEvent(QMouseEvent *event)
 {
+    if (!this->hasFocus())
+        return;
+
     camera.mouseMove(event->localPos());
 
     QCursor::setPos(this->mapToGlobal(QPoint(width() / 2, height() / 2)));
@@ -86,6 +77,24 @@ void OpenGLWidget::keyPressEvent(QKeyEvent *event)
     case Qt::Key_Escape:
         this->clearFocus(); break;
     }
+}
+
+void OpenGLWidget::focusInEvent(QFocusEvent *)
+{
+    setCursor(QCursor(Qt::BlankCursor));
+
+    camera.beginMouseTrack(QPoint(size().width() / 2, size().height() / 2));
+
+    emit setStatusBarMessage("Press ESC to regain mouse control");
+}
+
+void OpenGLWidget::focusOutEvent(QFocusEvent *)
+{
+    setCursor(QCursor(Qt::ArrowCursor));
+
+    camera.endMouseTrack();
+
+    emit setStatusBarMessage("");
 }
 
 void OpenGLWidget::loadBSP()

@@ -17,13 +17,15 @@ SOURCES += main.cpp\
         mainwindow.cpp \
     openglwidget.cpp \
     bsp.cpp \
-    camera.cpp
+    camera.cpp \
+    bspshader.cpp
 
 HEADERS  += mainwindow.h \
     openglwidget.h \
     bspdefs.h \
     bsp.h \
-    camera.h
+    camera.h \
+    bspshader.h
 
 FORMS    += mainwindow.ui
 

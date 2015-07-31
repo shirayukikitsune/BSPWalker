@@ -146,6 +146,9 @@ void BSP::destroyLumpData()
 
 void BSP::render(QMatrix4x4 modelView, QMatrix4x4 projection)
 {
+    if (!vboIndexes)
+        return;
+
     // Resets the drawn faces bitset
     for(auto i = drawnFaces.begin(); i != drawnFaces.end(); ++i) {
        *i = false;
@@ -161,7 +164,7 @@ void BSP::render(QMatrix4x4 modelView, QMatrix4x4 projection)
     vertexInfo->bind();
     vboIndexes->bind();
 
-    while (--i > 0) {
+    while (i --> 0) {
         // Check if this surface is a polygon (plane)
         if (surfaces[i].surfaceType != MST_PLANAR) continue;
         // Check if this surface was rendered
@@ -231,8 +234,6 @@ bool BSP::internalLoadMap(QFile &file)
 
 void BSP::parseMapData()
 {
-    drawnFaces.resize(surfaces.size());
-
     int size = vertexData.size();
     drawVert_t *vertices = new drawVert_t[size];
     int i = 0;
@@ -249,8 +250,11 @@ void BSP::parseMapData()
         center = center + (vertices[i].position / size);
         ++i;
     });
+
     this->center = center;
     vertexData.clear();
+
+    drawnFaces.resize(surfaces.size());
 
     vertexInfo = new QOpenGLVertexArrayObject;
     vertexInfo->create();
@@ -259,7 +263,7 @@ void BSP::parseMapData()
     vboVertices = new QOpenGLBuffer(QOpenGLBuffer::VertexBuffer);
     vboVertices->create();
     vboVertices->bind();
-    vboVertices->setUsagePattern(QOpenGLBuffer::StreamDraw);
+    vboVertices->setUsagePattern(QOpenGLBuffer::StaticDraw);
     vboVertices->allocate(vertices, size * sizeof(drawVert_t));
     delete[] vertices;
 
@@ -289,11 +293,25 @@ void BSP::parseMapData()
 
     vertexInfo->release();
 
+    // BSP indices are stored in a relative manner, so we must adjust to a global mode
+    for (auto surface = surfaces.begin(); surface != surfaces.end(); ++surface) {
+        for (int index = 0; index < surface->numIndexes; ++index) {
+            indexes[index + surface->firstIndex] += surface->firstVert;
+        }
+    }
+
     vboIndexes = new QOpenGLBuffer(QOpenGLBuffer::IndexBuffer);
     vboIndexes->create();
     vboIndexes->bind();
-    vboIndexes->setUsagePattern(QOpenGLBuffer::StreamDraw);
+    vboIndexes->setUsagePattern(QOpenGLBuffer::StaticDraw);
     vboIndexes->allocate(indexes.data(), indexes.size() * sizeof(int));
+
+    parseShaders();
+}
+
+void BSP::parseShaders()
+{
+
 }
 
 unsigned BSP::blockChecksum(const char *buffer, int length)

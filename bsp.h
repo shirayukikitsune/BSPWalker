@@ -2,6 +2,7 @@
 #define BSP_H
 
 #include "bspdefs.h"
+#include "bspshader.h"
 
 #include <vector>
 
@@ -45,8 +46,16 @@ public:
     QVector3D getCenter() { return center; }
 
 private:
+    /**
+     * @brief Releases all allocated VBOs, VAOs and textures
+     */
     void destroyVBO();
+
+    /**
+     * @brief Releases all allocated data related to BSP
+     */
     void destroyLumpData();
+
     /**
      * @brief Calculates the checksum of the block having the specified length
      */
@@ -61,6 +70,11 @@ private:
      * @brief Parses the map data and frees unused resources
      */
     void parseMapData();
+
+    /**
+     * @brief Loads textures and associated resources
+     */
+    void parseShaders();
 
     /**
      * @brief Loads data from a lump and fills a vector
@@ -157,7 +171,7 @@ private:
      * This is used to optimize the rendering process. During the BSP rendering, a face might be rendered twice. Needed for VIS
      */
     std::vector<bool> drawnFaces;
-    std::vector<QOpenGLTexture*> textures;
+    std::vector<BSPShader*> shaders;
     QOpenGLVertexArrayObject *vertexInfo;
     QOpenGLBuffer *vboVertices;
     QOpenGLBuffer *vboIndexes;
