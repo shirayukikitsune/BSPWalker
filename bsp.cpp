@@ -165,20 +165,18 @@ void BSP::render(QMatrix4x4 modelView, QMatrix4x4 projection)
 
     while (i --> 0) {
         // Check if this surface is a polygon (plane)
-        if (surfaces[i].surfaceType != MST_PLANAR) continue;
+        if (surfaces[i].surfaceType != MST_PLANAR && surfaces[i].surfaceType != MST_PATCH) continue;
         // Check if this surface was rendered
         if (drawnFaces[i] == true) continue;
 
         dsurface_t &surface = surfaces[i];
         drawnFaces[i] = true;
 
-        if (surface.shaderNum >= 0)
-            shaders[surface.shaderNum]->bind();
+        shaders[surface.shaderNum]->bind();
 
-        glDrawElements(GL_TRIANGLES, surface.numIndexes, GL_UNSIGNED_INT, reinterpret_cast<void*>(surface.firstIndex * sizeof(GLuint)));
+        glDrawElementsBaseVertex(GL_TRIANGLES, surface.numIndexes, GL_UNSIGNED_INT, reinterpret_cast<void*>(surface.firstIndex * sizeof(GLuint)), surface.firstVert);
 
-        if (surface.shaderNum >= 0)
-            shaders[surface.shaderNum]->release();
+        shaders[surface.shaderNum]->release();
     }
 
     vboIndexes->release();
@@ -246,8 +244,7 @@ void BSP::parseMapData()
     QVector3D center;
     // Convert from BSP dvert_t to a shader-friendly drawVert_t
     std::for_each(vertexData.begin(), vertexData.end(), [&vertices, &i, size, &center](dvert_t &data) {
-        // Adjust the BSP vertex position: BSP Z is GLSL Y and BSP -Y is GLSL Z
-        vertices[i].position = QVector3D(data.position[0], data.position[2], -data.position[1]);
+        vertices[i].position = QVector3D(data.position[0], data.position[1], data.position[2]);
         vertices[i].texCoord = QVector2D(data.textureCoords[0], data.textureCoords[1]);
         vertices[i].lightmapCoord = QVector2D(data.lightmap[0], data.lightmap[1]);
         vertices[i].normal = QVector3D(data.normal[0], data.normal[1], data.normal[2]);
@@ -298,13 +295,6 @@ void BSP::parseMapData()
     shaderProgram->setAttributeBuffer(attribute, GL_FLOAT, offsetof(drawVert_t, color), 4, sizeof(drawVert_t));
 
     vertexInfo->release();
-
-    // BSP indices are stored in a relative manner, so we must adjust to a global mode
-    for (auto surface = surfaces.begin(); surface != surfaces.end(); ++surface) {
-        for (int index = 0; index < surface->numIndexes; ++index) {
-            indexes[index + surface->firstIndex] += surface->firstVert;
-        }
-    }
 
     vboIndexes = new QOpenGLBuffer(QOpenGLBuffer::IndexBuffer);
     vboIndexes->create();
