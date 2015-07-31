@@ -148,7 +148,7 @@ private:
      */
     void releaseShaders();
 
-    std::vector<dshader_t> shaders;
+    std::vector<dshader_t> lumpShaders;
     std::vector<dleaf_t> leafs;
     std::vector<int> leafBrushes;
     std::vector<int> leafSurfaces;

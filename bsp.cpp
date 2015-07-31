@@ -118,18 +118,16 @@ void BSP::destroyVBO()
         vertexInfo = nullptr;
     }
 
-    for (auto i = textures.begin(); i != textures.end(); ++i) {
-        (*i)->release();
-        (*i)->destroy();
+    for (auto i = shaders.begin(); i != shaders.end(); ++i) {
         delete *i;
     }
-    textures.clear();
+    shaders.clear();
     drawnFaces.clear();
 }
 
 void BSP::destroyLumpData()
 {
-    shaders.clear();
+    lumpShaders.clear();
     leafs.clear();
     leafBrushes.clear();
     leafSurfaces.clear();
@@ -160,6 +158,7 @@ void BSP::render(QMatrix4x4 modelView, QMatrix4x4 projection)
     shaderProgram->setUniformValue("modelView", modelView);
     shaderProgram->setUniformValue("normalMatrix", modelView.normalMatrix());
     shaderProgram->setUniformValue("projectionMatrix", projection);
+    shaderProgram->setUniformValue("albedoTexture", 0);
 
     vertexInfo->bind();
     vboIndexes->bind();
@@ -172,7 +171,14 @@ void BSP::render(QMatrix4x4 modelView, QMatrix4x4 projection)
 
         dsurface_t &surface = surfaces[i];
         drawnFaces[i] = true;
+
+        if (surface.shaderNum >= 0)
+            shaders[surface.shaderNum]->bind();
+
         glDrawElements(GL_TRIANGLES, surface.numIndexes, GL_UNSIGNED_INT, reinterpret_cast<void*>(surface.firstIndex * sizeof(GLuint)));
+
+        if (surface.shaderNum >= 0)
+            shaders[surface.shaderNum]->release();
     }
 
     vboIndexes->release();
@@ -202,7 +208,7 @@ bool BSP::internalLoadMap(QFile &file)
     }
 
     // Load all lumps
-    if (!loadNotEmptyLump<dshader_t>(file, header->lumps[LUMP_SHADERS], shaders))
+    if (!loadNotEmptyLump<dshader_t>(file, header->lumps[LUMP_SHADERS], lumpShaders))
         return false;
     if (!loadNotEmptyLump<dleaf_t>(file, header->lumps[LUMP_LEAFS], leafs))
         return false;
@@ -311,7 +317,11 @@ void BSP::parseMapData()
 
 void BSP::parseShaders()
 {
-
+    for (auto shader = lumpShaders.begin(); shader != lumpShaders.end(); ++shader) {
+        BSPShader *bspShader = new BSPShader;
+        bspShader->create(shader->shader);
+        shaders.push_back(bspShader);
+    }
 }
 
 unsigned BSP::blockChecksum(const char *buffer, int length)

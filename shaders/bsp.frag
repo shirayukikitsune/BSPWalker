@@ -9,7 +9,9 @@ in vec4 fColor;
 
 out vec4 outColor;
 
+uniform sampler2D albedoTexture;
+
 void main(void)
 {
-    outColor = vec4(1.0);
+    outColor = texture(albedoTexture, fTexCoord);
 }

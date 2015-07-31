@@ -13,7 +13,7 @@ public:
     /**
      * @brief Allocates all GPU resources
      */
-    void create(const QString& shaderText);
+    bool create(const QString& shaderText);
     /**
      * @brief Binds the GPU resources for use
      *

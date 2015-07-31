@@ -1,5 +1,7 @@
 #include "bspshader.h"
 
+#include <QFile>
+
 BSPShader::BSPShader()
 {
     albedo = nullptr;
@@ -11,9 +13,30 @@ BSPShader::~BSPShader()
     destroy();
 }
 
-void BSPShader::create(const QString& shaderText)
+bool BSPShader::create(const QString& shaderText)
 {
+    // Check if a texture exists, appending .tga and .jpg to the path
+    QString tgaTex = QString("%1.%2").arg(shaderText, "tga"), jpgTex = QString("%1.%2").arg(shaderText, "jpg");
 
+    QImage texImage;
+
+    // Check if the TARGA texture exists and is loadable
+    if (QFile::exists(tgaTex)) {
+        if (!texImage.load(tgaTex))
+            return false;
+    }
+    // Now check for JPEG
+    else if (QFile::exists(jpgTex)) {
+        if (!texImage.load(jpgTex))
+            return false;
+    }
+    // If neither exists, we must try to parse the shaderText from a shader file
+    else return false;
+
+    albedo = new QOpenGLTexture(texImage);
+    albedo->create();
+
+    return true;
 }
 
 void BSPShader::bind()
