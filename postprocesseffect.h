@@ -32,7 +32,7 @@ public:
 
 protected:
     /// @brief Creates the shaders
-    void createEffect(const QString &fragmentShaderFile, const QString &vertexShaderFile = ":/shaders/vshader.glsl");
+    void createEffect(const QString &fragmentShaderFile, const QString &vertexShaderFile = ":/shaders/effects/vshader.glsl");
     /// @brief Destroys the shaders
     void destroyEffect();
 
@@ -143,7 +143,6 @@ private:
 
         float weightSum = 0.0f;
         int i;
-        // Simple optimization - since gaussian functions are symmetric, calculate only for half of the function
         for (i = 0; i < 15; ++i) {
             values[i] = g(i - 7);
             weightSum += values[i];
@@ -221,6 +220,29 @@ private:
     float bloomIntensity;
     float originalSaturation;
     float originalIntensity;
+};
+
+class DepthOfFieldEffect : public PostProcessEffect
+{
+public:
+    DepthOfFieldEffect();
+
+    void setFStop(float fStop) { this->fStop = fStop; }
+    float getFStop() const { return fStop; }
+
+    void setFocalLength(float length) { this->focalLength = length; }
+    float getFocalLength() const { return focalLength; }
+
+    virtual void create();
+
+    virtual QString toString() const;
+
+protected:
+    virtual void setEffectUniforms();
+
+private:
+    float fStop;
+    float focalLength;
 };
 
 #endif // POSTPROCESSEFFECT_H

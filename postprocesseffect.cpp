@@ -51,8 +51,6 @@ void PostProcessEffect::render(GLuint original, GLuint input, GLuint depth)
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, original);
 
-    glClear(GL_COLOR_BUFFER_BIT);
-
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
     // Release used resources
@@ -347,4 +345,28 @@ QString BloomEffect::toString() const
             .arg(bloomSaturation, 1, 'f', 2, '0')
             .arg(originalIntensity, 1, 'f', 2, '0')
             .arg(originalSaturation, 1, 'f', 2, '0');
+}
+
+DepthOfFieldEffect::DepthOfFieldEffect()
+{
+    fStop = 22.0f;
+    focalLength = 10.0f;
+}
+
+void DepthOfFieldEffect::setEffectUniforms()
+{
+    shaderProgram->setUniformValue("focalLength", focalLength);
+    shaderProgram->setUniformValue("fstop", fStop);
+}
+
+void DepthOfFieldEffect::create()
+{
+    createEffect(":/shaders/effects/dof.glsl");
+}
+
+QString DepthOfFieldEffect::toString() const
+{
+    return QString("DoF; (%1; %2)")
+            .arg(fStop, 1, 'f', 2, '0')
+            .arg(focalLength, 1, 'f', 2, '0');
 }

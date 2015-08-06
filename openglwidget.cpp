@@ -31,7 +31,7 @@ void OpenGLWidget::resizeGL(int w, int h)
     glViewport(0, 0, w, h);
 
     projection.setToIdentity();
-    projection.perspective(45.0f, (float)w / (float)h, 0.1f, 10000.0f);
+    projection.perspective(45.0f, (float)w / (float)h, 0.1f, 2000.0f);
 
     postProcessChain.resize(QVector2D(w, h));
 

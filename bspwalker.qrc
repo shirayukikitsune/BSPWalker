@@ -11,5 +11,6 @@
         <file>shaders/effects/horizontal_gaussian_blur_vertex.glsl</file>
         <file>shaders/effects/vertical_gaussian_blur_vertex.glsl</file>
         <file>shaders/effects/vshader.glsl</file>
+        <file>shaders/effects/dof.glsl</file>
     </qresource>
 </RCC>

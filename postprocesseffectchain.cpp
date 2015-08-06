@@ -55,13 +55,12 @@ void PostProcessEffectChain::create(int size)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_R_TO_TEXTURE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
     // Create the texture
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, size, size, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, size, size, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
     // Attach it to the FBO
     glFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, textures[3], 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, textures[3], 0);
 
     glBindFramebuffer(GL_FRAMEBUFFER_EXT, 0);
 }
@@ -140,7 +139,6 @@ void PostProcessEffectChain::beginScene()
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &oldFbo);
 
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_STENCIL_TEST);
 
     // Set the viewport size as the FBO's size
     glViewport(0, 0, fboSize, fboSize);
@@ -159,12 +157,11 @@ void PostProcessEffectChain::beginScene()
     if (status != GL_FRAMEBUFFER_COMPLETE)
         qWarning() << "Incomplete FBO; status " << status;
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void PostProcessEffectChain::endScene()
 {
-    glDisable(GL_STENCIL_TEST);
     glDisable(GL_DEPTH_TEST);
 }
 
@@ -211,4 +208,30 @@ void PostProcessEffectChain::initializeGL()
 
     final = new PassthroughEffect;
     final->create();
+
+    // Add some effects to test
+    EdgeDetectionEffect *edgeEffect = new EdgeDetectionEffect;
+    edgeEffect->setAdditive(true);
+    edgeEffect->setIntensity(0.2f);
+    edgeEffect->create();
+    addEffect(edgeEffect);
+
+    GammaCorrectionEffect *gamma = new GammaCorrectionEffect;
+    gamma->setGammaFactor(QVector3D(1.8f, 1.8f, 1.8f));
+    gamma->create();
+    addEffect(gamma);
+
+    DepthOfFieldEffect *dofEffect = new DepthOfFieldEffect;
+    dofEffect->create();
+    addEffect(dofEffect);
+
+    /*GaussianBlurEffect * blurEffect = new HorizontalGaussianBlurEffect;
+    blurEffect->setSigma(2.5f);
+    blurEffect->create();
+    addEffect(blurEffect);
+
+    blurEffect = new VerticalGaussianBlurEffect;
+    blurEffect->setSigma(2.5f);
+    blurEffect->create();
+    addEffect(blurEffect);*/
 }
