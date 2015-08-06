@@ -10,8 +10,13 @@ in vec4 fColor;
 out vec4 outColor;
 
 uniform sampler2D albedoTexture;
+uniform sampler2D lightmapTexture;
 
 void main(void)
 {
-    outColor = texture(albedoTexture, fTexCoord);
+    vec3 lightColor = texture(lightmapTexture, fLightmap).rgb;
+    vec4 albedoColor = texture(albedoTexture, fTexCoord);
+
+    outColor.a = albedoColor.a;
+    outColor.rgb = albedoColor.rgb * lightColor.rgb;
 }

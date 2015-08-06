@@ -1,6 +1,8 @@
 #include "openglwidget.h"
 
 #include <iostream>
+#include <sstream>
+
 #include <QFileDialog>
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -112,7 +114,23 @@ void OpenGLWidget::loadBSP()
     connect(bsp, SIGNAL(loadError(QString)), this, SLOT(bspError(QString)));
     bsp->loadMap(fileName);
 
-    camera.setPosition(bsp->getCenter());
+    // Try to find the entity that holds the position and angles for the initial camera position
+    BSPEntity *entity = bsp->findEntityByClassname("info_player_intermission");
+    if (!entity)
+        camera.setPosition(bsp->getCenter());
+    else {
+        std::istringstream iss(entity->getSetting("origin").toLatin1().data());
+        float x, y, z;
+
+        iss >> x >> y >> z;
+        camera.setPosition(QVector3D(x, y, z));
+
+        iss.seekg(0);
+        iss.str(entity->getSetting("angles").toLatin1().data());
+        iss >> x >> y >> z;
+
+        camera.setRotation(x, y, z);
+    }
 }
 
 void OpenGLWidget::bspError(QString error)

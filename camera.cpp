@@ -1,11 +1,13 @@
 #include "camera.h"
 
+#include <QtMath>
+
 Camera::Camera()
 {
-    eye = QVector3D(0.0, 0.0, 0.0);
-    forward = QVector3D(0.0, 0.0, -1.0);
-    up = QVector3D(0.0, 1.0, 0.0);
-    right = QVector3D(1.0, 0.0, 0.0);
+    position = QVector3D(0.0, 0.0, 0.0);
+    pitch = yaw = roll = 0.0f;
+
+    update();
 
     tracking = false;
 }
@@ -13,9 +15,17 @@ Camera::Camera()
 QMatrix4x4 Camera::getView()
 {
     QMatrix4x4 view;
-    view.setToIdentity();
-    view.lookAt(eye, eye + forward, up);
+    view.lookAt(position, position + forward, up);
     return view;
+}
+
+void Camera::setRotation(float pitch, float yaw, float roll)
+{
+    this->pitch = qDegreesToRadians(pitch);
+    this->yaw = qDegreesToRadians(yaw);
+    this->roll = qDegreesToRadians(roll);
+
+    update();
 }
 
 void Camera::beginMouseTrack(const QPointF &pos)
@@ -31,21 +41,33 @@ void Camera::endMouseTrack()
 
 void Camera::mouseMove(const QPointF &pos)
 {
-    float yaw = (mouseClickPos.x() - pos.x()) / 2.0f;
-    float pitch = (mouseClickPos.y() - pos.y()) / 2.0f;
+    float yaw = (pos.x() - mouseClickPos.x()) / 2.0f;
+    float pitch = (pos.y() - mouseClickPos.y()) / 2.0f;
 
-    forward = QQuaternion::fromAxisAndAngle(right, pitch).rotatedVector(forward);
-    forward = QQuaternion::fromAxisAndAngle(up, yaw).rotatedVector(forward);
-    up = QVector3D::crossProduct(right, forward);
-    right = QVector3D::crossProduct(forward, up);
+    this->pitch -= pitch;
+    this->pitch = qBound<float>(-90, this->pitch, 90);
+    this->yaw -= yaw;
+
+    update();
+}
+
+void Camera::update()
+{
+    QMatrix4x4 r;
+    r.rotate(yaw, 0, 0, 1);
+    r.rotate(roll, 0, 1, 0);
+    r.rotate(pitch, 1, 0, 0);
+    // BSP uses Z as up
+    up = r * QVector3D(0.0f, 0.0f, 1.0f);
+    forward = r * QVector3D(0.0f, 1.0f, 0.0f);
 }
 
 void Camera::walk(float speed)
 {
-    eye += forward * speed;
+    position += forward * speed;
 }
 
 void Camera::strafe(float speed)
 {
-    eye += right * speed;
+    position += QVector3D::crossProduct(forward, up) * speed;
 }

@@ -11,9 +11,19 @@ public:
     ~BSPShader();
 
     /**
-     * @brief Allocates all GPU resources
+     * @brief Allocates all GPU resources, creating from a texture file.
+     *
+     * @remarks This will create only the albedo channel, with default parameters
      */
-    bool create(const QString& shaderText);
+    bool createFromTextureFile(const QString& textureFile);
+
+    /**
+     * @brief Allocates all GPU resources, creating from a .shader section
+     *
+     * @remarks This is the preferred method, since sets specific parameters for each texture
+     */
+    bool createFromShaderText(const QString& shaderText);
+
     /**
      * @brief Binds the GPU resources for use
      *

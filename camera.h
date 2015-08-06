@@ -11,7 +11,8 @@ public:
 
     QMatrix4x4 getView();
 
-    void setPosition(QVector3D pos) { eye = pos; }
+    void setPosition(QVector3D pos) { position = pos; }
+    void setRotation(float pitch, float yaw, float roll);
 
     void beginMouseTrack(const QPointF &pos);
     void endMouseTrack();
@@ -24,13 +25,15 @@ public:
     void strafe(float speed);
 
 private:
+    void update();
+
     QPointF mouseClickPos;
     bool tracking;
 
-    QVector3D eye;
+    QVector3D position;
     QVector3D forward;
     QVector3D up;
-    QVector3D right;
+    float pitch, yaw, roll;
 };
 
 #endif // CAMERA_H

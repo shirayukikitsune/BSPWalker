@@ -162,6 +162,10 @@ typedef struct {
     QVector4D   color;
 } drawVert_t;
 
+typedef struct {
+    unsigned char data[LIGHTMAP_WIDTH][LIGHTMAP_HEIGHT][3];
+} dlightmap_t;
+
 #define drawVert_t_cleared(x) drawVert_t (x) = {{0, 0, 0}, {0, 0}, {0, 0}, {0, 0, 0}, {0, 0, 0, 0}}
 
 typedef enum {

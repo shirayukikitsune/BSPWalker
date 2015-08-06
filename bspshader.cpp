@@ -13,10 +13,10 @@ BSPShader::~BSPShader()
     destroy();
 }
 
-bool BSPShader::create(const QString& shaderText)
+bool BSPShader::createFromTextureFile(const QString& textureFile)
 {
     // Check if a texture exists, appending .tga and .jpg to the path
-    QString tgaTex = QString("%1.%2").arg(shaderText, "tga"), jpgTex = QString("%1.%2").arg(shaderText, "jpg");
+    QString tgaTex = QString("%1.%2").arg(textureFile, "tga"), jpgTex = QString("%1.%2").arg(textureFile, "jpg");
 
     QImage texImage;
 

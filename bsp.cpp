@@ -1,12 +1,14 @@
 #include "bsp.h"
 
 #include "bspdefs.h"
+#include "q3parser.h"
 
 #include <algorithm>
 #include <iostream>
 
 #include <QCryptographicHash>
 #include <QFile>
+#include <QOpenGLPixelTransferOptions>
 
 BSP::BSP()
 {
@@ -91,11 +93,16 @@ void BSP::loadMap(const QString &file)
 
 void BSP::releaseMap()
 {
-    destroyVBO();
+    destroyGPUObjects();
     destroyLumpData();
+
+    for (auto i = entities.begin(); i != entities.end(); ++i) {
+        delete *i;
+    }
+    entities.clear();
 }
 
-void BSP::destroyVBO()
+void BSP::destroyGPUObjects()
 {
     if (vboIndexes) {
         vboIndexes->release();
@@ -123,6 +130,13 @@ void BSP::destroyVBO()
     }
     shaders.clear();
     drawnFaces.clear();
+
+    for (auto i = lightmaps.begin(); i != lightmaps.end(); ++i) {
+        (*i)->release();
+        (*i)->destroy();
+        delete *i;
+    }
+    lightmaps.clear();
 }
 
 void BSP::destroyLumpData()
@@ -159,6 +173,7 @@ void BSP::render(QMatrix4x4 modelView, QMatrix4x4 projection)
     shaderProgram->setUniformValue("normalMatrix", modelView.normalMatrix());
     shaderProgram->setUniformValue("projectionMatrix", projection);
     shaderProgram->setUniformValue("albedoTexture", 0);
+    shaderProgram->setUniformValue("lightmapTexture", 1);
 
     vertexInfo->bind();
     vboIndexes->bind();
@@ -174,8 +189,14 @@ void BSP::render(QMatrix4x4 modelView, QMatrix4x4 projection)
 
         shaders[surface.shaderNum]->bind();
 
+        if (surface.lightmapNum >= 0)
+            lightmaps[surface.lightmapNum]->bind(1);
+
+        // Since BSP indices are relative to the first vertex of the surface, we use glDrawElementsBaseVertex
         glDrawElementsBaseVertex(GL_TRIANGLES, surface.numIndexes, GL_UNSIGNED_INT, reinterpret_cast<void*>(surface.firstIndex * sizeof(GLuint)), surface.firstVert);
 
+        if (surface.lightmapNum >= 0)
+            lightmaps[surface.lightmapNum]->release(1);
         shaders[surface.shaderNum]->release();
     }
 
@@ -232,11 +253,58 @@ bool BSP::internalLoadMap(QFile &file)
         return false;
     if (!loadLump<int>(file, header->lumps[LUMP_DRAWINDEXES], indexes))
         return false;
+    if (!loadNotEmptyLump<dlightmap_t>(file, header->lumps[LUMP_LIGHTMAPS], lightmapImages))
+        return false;
 
     return true;
 }
 
 void BSP::parseMapData()
+{
+    parseShaders();
+
+    createLightmaps();
+
+	createVBOs();
+
+    parseEntities();
+}
+
+void BSP::parseEntities()
+{
+    Q3TokenType tokenType;
+    Q3Parser parser(entityString.data());
+
+    BSPEntity *entity = nullptr;
+    QString key;
+
+    // Parsing entities is rather simple:
+    // They have no name definitions and the contents are always a K/V pair
+    while ((tokenType = parser.next()) != Q3TOK_EOF) {
+        if (tokenType == Q3TOK_LIST_START) { // Starting a new group, so create a new entity
+            entity = new BSPEntity;
+        }
+        else if (tokenType == Q3TOK_LIST_END) { // Ending a group, add the current entity to the entity list
+            if (entity != nullptr)
+                entities.push_back(entity);
+
+            entity = nullptr;
+        }
+        else if (tokenType == Q3TOK_LITERAL || tokenType == Q3TOK_STRING) {
+            if (key.isNull()) {
+                key = parser.getCurrentToken();
+            }
+            else {
+                entity->addSetting(key, parser.getCurrentToken());
+                key.clear();
+            }
+        }
+    }
+
+    entityString.clear();
+}
+
+void BSP::createVBOs()
 {
     int size = vertexData.size();
     drawVert_t *vertices = new drawVert_t[size];
@@ -253,7 +321,6 @@ void BSP::parseMapData()
         center = center + (vertices[i].position / size);
         ++i;
     });
-
     this->center = center;
     vertexData.clear();
 
@@ -301,17 +368,40 @@ void BSP::parseMapData()
     vboIndexes->bind();
     vboIndexes->setUsagePattern(QOpenGLBuffer::StaticDraw);
     vboIndexes->allocate(indexes.data(), indexes.size() * sizeof(int));
-
-    parseShaders();
 }
 
 void BSP::parseShaders()
 {
     for (auto shader = lumpShaders.begin(); shader != lumpShaders.end(); ++shader) {
         BSPShader *bspShader = new BSPShader;
-        bspShader->create(shader->shader);
+        bspShader->createFromTextureFile(shader->shader);
         shaders.push_back(bspShader);
     }
+
+    // Free the BSP raw data
+    lumpShaders.clear();
+}
+
+void BSP::createLightmaps()
+{
+    // Set the buffer alignment to 1 byte
+    QOpenGLPixelTransferOptions options;
+    options.setAlignment(1);
+
+    for (auto img = lightmapImages.begin(); img != lightmapImages.end(); ++img) {
+        QOpenGLTexture *texture = new QOpenGLTexture(QOpenGLTexture::Target2D);
+        texture->create();
+        texture->setSize(LIGHTMAP_WIDTH, LIGHTMAP_HEIGHT);
+        texture->setFormat(QOpenGLTexture::RGB8_UNorm);
+        texture->allocateStorage();
+        texture->setData(QOpenGLTexture::RGB, QOpenGLTexture::UInt8, img->data, &options);
+		// Mipmaps are be created by default, so enable their use
+        texture->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
+        lightmaps.push_back(texture);
+    }
+
+    // Free BSP raw data
+    lightmapImages.clear();
 }
 
 unsigned BSP::blockChecksum(const char *buffer, int length)
@@ -324,4 +414,16 @@ unsigned BSP::blockChecksum(const char *buffer, int length)
     unsigned val = digest[0] ^ digest[1] ^ digest[2] ^ digest[3];
 
     return val;
+}
+
+BSPEntity* BSP::findEntityByClassname(QString classname)
+{
+    for (auto entity = entities.begin(); entity != entities.end(); ++entity) {
+        QString entityClass = (*entity)->getSetting("classname");
+        if (!entityClass.isNull() && entityClass.compare(classname, Qt::CaseInsensitive) == 0) {
+            return *entity;
+        }
+    }
+
+    return nullptr;
 }

@@ -2,6 +2,7 @@
 #define BSP_H
 
 #include "bspdefs.h"
+#include "bspentity.h"
 #include "bspshader.h"
 
 #include <vector>
@@ -45,11 +46,13 @@ public:
      */
     QVector3D getCenter() { return center; }
 
+    BSPEntity *findEntityByClassname(QString classname);
+
 private:
     /**
      * @brief Releases all allocated VBOs, VAOs and textures
      */
-    void destroyVBO();
+    void destroyGPUObjects();
 
     /**
      * @brief Releases all allocated data related to BSP
@@ -72,9 +75,24 @@ private:
     void parseMapData();
 
     /**
+     * @brief Allocates all GPU resources for vertices and indexes
+     */
+    void createVBOs();
+
+    /**
      * @brief Loads textures and associated resources
      */
     void parseShaders();
+
+    /**
+     * @brief Loads the entities information from the lump data
+     */
+    void parseEntities();
+
+    /**
+     * @brief Initializes all lightmap textures
+     */
+    void createLightmaps();
 
     /**
      * @brief Loads data from a lump and fills a vector
@@ -87,6 +105,12 @@ private:
             return false;
         }
 
+        int count = lump.filelen / sizeof(T);
+
+        // If the lump is empty, exit silently
+        if (count == 0)
+            return true;
+
         file.seek(lump.fileofs);
         QByteArray data = file.read(lump.filelen);
 
@@ -94,8 +118,6 @@ private:
             emit loadError(QString("Error loading BSP file: %1s").arg(file.errorString()));
             return false;
         }
-
-        int count = lump.filelen / sizeof(T);
 
         vec.resize(count);
 
@@ -161,6 +183,7 @@ private:
     std::vector<dsurface_t> surfaces;
     std::vector<dvert_t> vertexData;
     std::vector<int> indexes;
+    std::vector<dlightmap_t> lightmapImages;
 
     QOpenGLShaderProgram *shaderProgram;
     QOpenGLShader *vertexShader;
@@ -172,6 +195,9 @@ private:
      */
     std::vector<bool> drawnFaces;
     std::vector<BSPShader*> shaders;
+    std::vector<QOpenGLTexture*> lightmaps;
+    std::vector<BSPEntity*> entities;
+
     QOpenGLVertexArrayObject *vertexInfo;
     QOpenGLBuffer *vboVertices;
     QOpenGLBuffer *vboIndexes;

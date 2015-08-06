@@ -18,14 +18,18 @@ SOURCES += main.cpp\
     openglwidget.cpp \
     bsp.cpp \
     camera.cpp \
-    bspshader.cpp
+    bspshader.cpp \
+    q3parser.cpp \
+    bspentity.cpp
 
 HEADERS  += mainwindow.h \
     openglwidget.h \
     bspdefs.h \
     bsp.h \
     camera.h \
-    bspshader.h
+    bspshader.h \
+    q3parser.h \
+    bspentity.h
 
 FORMS    += mainwindow.ui
 
