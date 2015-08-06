@@ -20,7 +20,9 @@ SOURCES += main.cpp\
     camera.cpp \
     bspshader.cpp \
     q3parser.cpp \
-    bspentity.cpp
+    bspentity.cpp \
+    postprocesseffect.cpp \
+    postprocesseffectchain.cpp
 
 HEADERS  += mainwindow.h \
     openglwidget.h \
@@ -29,7 +31,9 @@ HEADERS  += mainwindow.h \
     camera.h \
     bspshader.h \
     q3parser.h \
-    bspentity.h
+    bspentity.h \
+    postprocesseffect.h \
+    postprocesseffectchain.h
 
 FORMS    += mainwindow.ui
 

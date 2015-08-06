@@ -23,7 +23,7 @@ void OpenGLWidget::initializeGL()
     connect(&timer, SIGNAL(timeout()), this, SLOT(update()));
     timer.start(0);
 
-    glEnable(GL_DEPTH_TEST);
+    postProcessChain.initializeGL();
 }
 
 void OpenGLWidget::resizeGL(int w, int h)
@@ -32,9 +32,8 @@ void OpenGLWidget::resizeGL(int w, int h)
 
     projection.setToIdentity();
     projection.perspective(45.0f, (float)w / (float)h, 0.1f, 10000.0f);
-    //projection.ortho(0, 1000, 0, 100, 0.01f, 5000.0f);
 
-    QPointF screenCenter(w / 2, h / 2);
+    postProcessChain.resize(QVector2D(w, h));
 
     update();
 }
@@ -46,9 +45,13 @@ void OpenGLWidget::paintGL()
 
     makeCurrent();
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    postProcessChain.beginScene();
 
     bsp->render(camera.getView(), projection);
+
+    postProcessChain.endScene();
+
+    postProcessChain.render();
 }
 
 void OpenGLWidget::mouseMoveEvent(QMouseEvent *event)

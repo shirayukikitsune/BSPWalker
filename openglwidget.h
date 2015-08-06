@@ -3,6 +3,7 @@
 
 #include "bsp.h"
 #include "camera.h"
+#include "postprocesseffectchain.h"
 
 #include <QMatrix4x4>
 #include <QOpenGLWidget>
@@ -33,6 +34,8 @@ private:
     Camera camera;
     QMatrix4x4 modelView;
     QMatrix4x4 projection;
+
+    PostProcessEffectChain postProcessChain;
 
 public slots:
     void loadBSP();

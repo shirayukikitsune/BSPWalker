@@ -2,5 +2,14 @@
     <qresource prefix="/">
         <file>shaders/bsp.frag</file>
         <file>shaders/bsp.vert</file>
+        <file>shaders/effects/bloom.glsl</file>
+        <file>shaders/effects/cross_stitch.glsl</file>
+        <file>shaders/effects/edge_detection.glsl</file>
+        <file>shaders/effects/fshader.glsl</file>
+        <file>shaders/effects/gamma_correction.glsl</file>
+        <file>shaders/effects/gaussian_blur_frag.glsl</file>
+        <file>shaders/effects/horizontal_gaussian_blur_vertex.glsl</file>
+        <file>shaders/effects/vertical_gaussian_blur_vertex.glsl</file>
+        <file>shaders/effects/vshader.glsl</file>
     </qresource>
 </RCC>
