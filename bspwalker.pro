@@ -22,7 +22,8 @@ SOURCES += main.cpp\
     q3parser.cpp \
     bspentity.cpp \
     postprocesseffect.cpp \
-    postprocesseffectchain.cpp
+    postprocesseffectchain.cpp \
+    light.cpp
 
 HEADERS  += mainwindow.h \
     openglwidget.h \
@@ -33,7 +34,8 @@ HEADERS  += mainwindow.h \
     q3parser.h \
     bspentity.h \
     postprocesseffect.h \
-    postprocesseffectchain.h
+    postprocesseffectchain.h \
+    light.h
 
 FORMS    += mainwindow.ui
 

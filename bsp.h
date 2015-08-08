@@ -4,6 +4,7 @@
 #include "bspdefs.h"
 #include "bspentity.h"
 #include "bspshader.h"
+#include "light.h"
 
 #include <vector>
 
@@ -39,7 +40,7 @@ public:
     /**
      * @brief Renders the BSP level
      */
-    void render(QMatrix4x4 modelView, QMatrix4x4 projection);
+    void render(QMatrix4x4 modelView, QMatrix4x4 projection, QVector3D cameraPosition);
 
     /**
      * @brief Returns the center of the level
@@ -68,6 +69,8 @@ private:
      * @brief Loads data from the file into the vectors
      */
     bool internalLoadMap(QFile &file);
+    
+    void parseShaderData(QString fileName);
 
     /**
      * @brief Parses the map data and frees unused resources
@@ -160,6 +163,8 @@ private:
         return true;
     }
 
+    bool loadVisData(QFile &file, lump_t &lump);
+
     /**
      * @brief Initializes the OpenGL functions
      */
@@ -169,6 +174,24 @@ private:
      * @brief Release all used shaders
      */
     void releaseShaders();
+
+    /**
+     * @brief Returns which node the specified position belongs to
+     */
+    int findNodeForPosition(const QVector3D& position);
+
+    /**
+     * @brief Returns if node ''current'' can see node ''test''
+     */
+    inline bool canSee(int current, int test) {
+        if (!visibilityData || current < 0) return true;
+
+        // Look for the byte containing the data
+        unsigned char set = visibilityData->bitset[current * visibilityData->clusterSize + (test / 8)];
+
+        // Returns whether the bit is set or not
+        return !(set & (1 << (test & 7)));
+    }
 
     std::vector<dshader_t> lumpShaders;
     std::vector<dleaf_t> leafs;
@@ -197,10 +220,15 @@ private:
     std::vector<BSPShader*> shaders;
     std::vector<QOpenGLTexture*> lightmaps;
     std::vector<BSPEntity*> entities;
+    dvisdata_t *visibilityData;
 
     QOpenGLVertexArrayObject *vertexInfo;
     QOpenGLBuffer *vboVertices;
     QOpenGLBuffer *vboIndexes;
+
+    std::map<QString, BSPShader*> namedShaders;
+
+    Light skyLight;
 
     QVector3D center;
     unsigned checksum;

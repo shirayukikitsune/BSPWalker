@@ -11,6 +11,7 @@ public:
 
     QMatrix4x4 getView();
 
+    QVector3D getPosition() { return position; }
     void setPosition(QVector3D pos) { position = pos; }
     void setRotation(float pitch, float yaw, float roll);
 

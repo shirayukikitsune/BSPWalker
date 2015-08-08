@@ -9,6 +9,7 @@
 #include <QCryptographicHash>
 #include <QFile>
 #include <QOpenGLPixelTransferOptions>
+#include <QRegularExpression>
 
 BSP::BSP()
 {
@@ -19,6 +20,8 @@ BSP::BSP()
     vertexShader = nullptr;
     fragmentShader = nullptr;
     shaderProgram = nullptr;
+
+    visibilityData = nullptr;
 
     initializeGL();
 }
@@ -88,6 +91,12 @@ void BSP::loadMap(const QString &file)
 
     f.close();
 
+    // Load shader data
+    QRegularExpression re("(.*)(\\\\|/)(maps)(\\\\|/)(.+)(\\.bsp)", QRegularExpression::CaseInsensitiveOption);
+    QString shaderFile = file;
+    shaderFile.replace(re, "\\1\\2scripts\\4\\5.shader");
+
+    parseShaderData(shaderFile);
     parseMapData();
 }
 
@@ -100,6 +109,12 @@ void BSP::releaseMap()
         delete *i;
     }
     entities.clear();
+
+    if (visibilityData) {
+        delete[] visibilityData->bitset;
+        delete visibilityData;
+        visibilityData = nullptr;
+    }
 }
 
 void BSP::destroyGPUObjects()
@@ -156,17 +171,23 @@ void BSP::destroyLumpData()
     indexes.clear();
 }
 
-void BSP::render(QMatrix4x4 modelView, QMatrix4x4 projection)
+void BSP::render(QMatrix4x4 modelView, QMatrix4x4 projection, QVector3D cameraPosition)
 {
     if (!vboIndexes)
         return;
+
+    // Animate the shaders
+    for(auto shader = shaders.begin(); shader != shaders.end(); ++shader)
+        (*shader)->update();
 
     // Resets the drawn faces bitset
     for(auto i = drawnFaces.begin(); i != drawnFaces.end(); ++i) {
        *i = false;
     }
 
-    int i = (int)surfaces.size();
+    int currentLeafIndex = findNodeForPosition(cameraPosition);
+    int currentCluster = leafs[currentLeafIndex].cluster;
+    int i = (int)leafs.size();
 
     shaderProgram->bind();
     shaderProgram->setUniformValue("modelView", modelView);
@@ -174,30 +195,44 @@ void BSP::render(QMatrix4x4 modelView, QMatrix4x4 projection)
     shaderProgram->setUniformValue("projectionMatrix", projection);
     shaderProgram->setUniformValue("albedoTexture", 0);
     shaderProgram->setUniformValue("lightmapTexture", 1);
+    shaderProgram->setUniformValue("lightDirection", skyLight.direction);
+    shaderProgram->setUniformValue("lightColor", skyLight.color);
+    shaderProgram->setUniformValue("lightIntensity", skyLight.intensity);
 
     vertexInfo->bind();
     vboIndexes->bind();
 
     while (i --> 0) {
-        // Check if this surface is a polygon (plane)
-        if (surfaces[i].surfaceType != MST_PLANAR && surfaces[i].surfaceType != MST_PATCH) continue;
-        // Check if this surface was rendered
-        if (drawnFaces[i] == true) continue;
+        dleaf_t& drawLeaf = leafs[i];
 
-        dsurface_t &surface = surfaces[i];
-        drawnFaces[i] = true;
+        if (!canSee(currentCluster, drawLeaf.cluster))
+            continue;
 
-        shaders[surface.shaderNum]->bind();
+        int faceCount = drawLeaf.numLeafSurfaces;
 
-        if (surface.lightmapNum >= 0)
-            lightmaps[surface.lightmapNum]->bind(1);
+        while (faceCount --> 0) {
+            int surfaceIndex = leafSurfaces[drawLeaf.firstLeafSurface + faceCount];
+            dsurface_t &surface = surfaces[surfaceIndex];
 
-        // Since BSP indices are relative to the first vertex of the surface, we use glDrawElementsBaseVertex
-        glDrawElementsBaseVertex(GL_TRIANGLES, surface.numIndexes, GL_UNSIGNED_INT, reinterpret_cast<void*>(surface.firstIndex * sizeof(GLuint)), surface.firstVert);
+            // Check if this surface is a polygon (plane)
+            if (surface.surfaceType != MST_PLANAR && surface.surfaceType != MST_PATCH) continue;
+            // Check if this surface was rendered
+            if (drawnFaces[surfaceIndex] == true) continue;
 
-        if (surface.lightmapNum >= 0)
-            lightmaps[surface.lightmapNum]->release(1);
-        shaders[surface.shaderNum]->release();
+            drawnFaces[surfaceIndex] = true;
+
+            shaders[surface.shaderNum]->bind(shaderProgram);
+
+            if (surface.lightmapNum >= 0)
+                lightmaps[surface.lightmapNum]->bind(1);
+
+            // Since BSP indices are relative to the first vertex of the surface, we use glDrawElementsBaseVertex
+            glDrawElementsBaseVertex(GL_TRIANGLES, surface.numIndexes, GL_UNSIGNED_INT, reinterpret_cast<void*>(surface.firstIndex * sizeof(GLuint)), surface.firstVert);
+
+            if (surface.lightmapNum >= 0)
+                lightmaps[surface.lightmapNum]->release(1);
+            shaders[surface.shaderNum]->release();
+        }
     }
 
     vboIndexes->release();
@@ -255,6 +290,124 @@ bool BSP::internalLoadMap(QFile &file)
         return false;
     if (!loadNotEmptyLump<dlightmap_t>(file, header->lumps[LUMP_LIGHTMAPS], lightmapImages))
         return false;
+    if (!loadVisData(file, header->lumps[LUMP_VISIBILITY]))
+        return false;
+
+    return true;
+}
+
+void BSP::parseShaderData(QString fileName)
+{
+    QFile file(fileName);
+    if (!file.exists() || !file.open(QFile::ReadOnly))
+        return;
+
+    QByteArray data = file.readAll();
+
+    file.close();
+
+    Q3Parser parser(data.data());
+    Q3TokenType tokenType;
+
+    int nestLevel = 0;
+    BSPShader *currentShader;
+
+    QString currentAlbedo = "";
+    QVector2D uvMod;
+
+    // Look for the sun color and direction
+    while ((tokenType = parser.next()) != Q3TOK_EOF) {
+        if (tokenType == Q3TOK_LITERAL || tokenType == Q3TOK_STRING) {
+            if (nestLevel == 0) {
+                // Root level, shader name
+                QString shaderName = parser.getCurrentToken();
+                currentShader = new BSPShader(shaderName);
+                namedShaders[shaderName] = currentShader;
+            }
+            else {
+                QString attributeName = parser.getCurrentToken();
+                //
+                if (attributeName == "q3map_sun") {
+                    parser.next();
+                    QString red = parser.getCurrentToken();
+                    parser.next();
+                    QString green = parser.getCurrentToken();
+                    parser.next();
+                    QString blue = parser.getCurrentToken();
+
+                    skyLight.color = QVector3D(atof(red.toLatin1().data()), atof(green.toLatin1().data()), atof(blue.toLatin1().data()));
+
+                    parser.next();
+                    QString intensity = parser.getCurrentToken();
+                    skyLight.intensity = atof(intensity.toLatin1().data());
+
+                    parser.next();
+                    QString zRotation = parser.getCurrentToken();
+                    parser.next();
+                    QString xRotation = parser.getCurrentToken();
+
+                    // Calculate the direction
+                    QVector3D direction(0, 1, 0);
+                    QQuaternion rotation = QQuaternion::fromAxisAndAngle(0, 0, 1, atof(zRotation.toLatin1().data()));
+                    rotation *= QQuaternion::fromAxisAndAngle(1, 0, 0, atof(xRotation.toLatin1().data()));
+                    skyLight.direction = rotation.rotatedVector(direction);
+                }
+                else if (attributeName == "map") {
+                    // Texture file
+                    parser.next();
+                    QString fileName = parser.getCurrentToken();
+                    if (fileName[0] == '$'){
+                        // Special name, ignore it
+                        continue;
+                    }
+                    currentAlbedo = fileName;
+                }
+                else if (attributeName == "tcMod") {
+                    // get mod type
+                    parser.next();
+                    QString modType = parser.getCurrentToken();
+                    if (modType.toLower() == "scroll") {
+                        // get mod values
+                        parser.next();
+                        QString xMod = parser.getCurrentToken();
+                        parser.next();
+                        QString yMod = parser.getCurrentToken();
+                        uvMod = QVector2D(atof(xMod.toLatin1().data()), atof(yMod.toLatin1().data()));
+                    }
+                }
+            }
+        }
+        else if (tokenType == Q3TOK_LIST_START) {
+            currentAlbedo.clear();
+            uvMod = QVector2D(0, 0);
+            nestLevel++;
+        }
+        else if (tokenType == Q3TOK_LIST_END) {
+            if (currentShader && !currentAlbedo.isNull()) {
+                currentShader->setAlbedo(currentAlbedo);
+                currentShader->setUVModValue(uvMod);
+            }
+            nestLevel--;
+        }
+    }
+}
+
+bool BSP::loadVisData(QFile &file, lump_t &lump)
+{
+    if (lump.filelen == 0)
+        return true;
+
+    file.seek(lump.fileofs);
+
+    visibilityData = new dvisdata_t;
+
+    file.read((char*)&visibilityData->clusterNum, sizeof (int));
+    file.read((char*)&visibilityData->clusterSize, sizeof (int));
+
+    int totalSize = visibilityData->clusterNum * visibilityData->clusterSize;
+
+    visibilityData->bitset = new unsigned char[totalSize];
+    file.read((char*)visibilityData->bitset, totalSize);
 
     return true;
 }
@@ -373,9 +526,15 @@ void BSP::createVBOs()
 void BSP::parseShaders()
 {
     for (auto shader = lumpShaders.begin(); shader != lumpShaders.end(); ++shader) {
-        BSPShader *bspShader = new BSPShader;
-        bspShader->createFromTextureFile(shader->shader);
-        shaders.push_back(bspShader);
+        auto named = namedShaders.find(shader->shader);
+        if (named == namedShaders.end()) {
+            BSPShader *bspShader = new BSPShader(shader->shader);
+            bspShader->create();
+            shaders.push_back(bspShader);
+        }
+        else {
+            shaders.push_back(named->second);
+        }
     }
 
     // Free the BSP raw data
@@ -426,4 +585,21 @@ BSPEntity* BSP::findEntityByClassname(QString classname)
     }
 
     return nullptr;
+}
+
+int BSP::findNodeForPosition(const QVector3D &position)
+{
+    int nodeIndex = 0;
+
+    while (nodeIndex >= 0)
+    {
+        auto &node = nodes[nodeIndex];
+        auto &plane = planes[node.planeNum];
+
+        float distance = plane.normal[0] * position.x() + plane.normal[1] * position.y() + plane.normal[2] * position.z() - plane.dist;
+
+        nodeIndex = node.children[distance > 0 ? 1 : 0];
+    }
+
+    return ~nodeIndex;
 }

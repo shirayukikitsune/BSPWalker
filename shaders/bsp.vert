@@ -16,14 +16,14 @@ out vec4 fColor;
 uniform mat4 modelView;
 uniform mat3 normalMatrix;
 uniform mat4 projectionMatrix;
-uniform vec4 lightPosition;
+uniform vec3 lightDirection;
 
 void main(void)
 {
     vec4 eyePosition = modelView * vec4(vPosition, 1.0);
 
     fN = normalMatrix * vNormal;
-    fL = lightPosition.xyz - eyePosition.xyz;
+    fL = lightDirection;
     fE = -eyePosition.xyz;
     fTexCoord = vTexCoord;
     fLightmap = vLightmapCoord;

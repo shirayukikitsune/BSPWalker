@@ -47,7 +47,7 @@ void OpenGLWidget::paintGL()
 
     postProcessChain.beginScene();
 
-    bsp->render(camera.getView(), projection);
+    bsp->render(camera.getView(), projection, camera.getPosition());
 
     postProcessChain.endScene();
 

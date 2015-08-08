@@ -74,7 +74,7 @@ float zfar = 2000.0; //camera clipping end
 int samples = 3; //samples on the first ring
 int rings = 3; //ring count
 
-bool manualdof = true; //manual dof calculation
+bool manualdof = false; //manual dof calculation
 float ndofstart = 1.0; //near dof blur start
 float ndofdist = 2.0; //near dof blur falloff distance
 float fdofstart = 1.0; //far dof blur start
@@ -82,7 +82,7 @@ float fdofdist = 3.0; //far dof blur falloff distance
 
 float CoC = 0.03;//circle of confusion size in mm (35mm film = 0.03mm)
 
-bool vignetting = false; //use optical lens vignetting?
+bool vignetting = true; //use optical lens vignetting?
 float vignout = 1.3; //vignetting outer border
 float vignin = 0.0; //vignetting inner border
 float vignfade = 22.0; //f-stops till vignete fades
@@ -100,7 +100,7 @@ float fringe = 0.7; //bokeh chromatic aberration/fringing
 bool noise = true; //use noise instead of pattern for sample dithering
 float namount = 0.0001; //dither amount
 
-bool depthblur = false; //blur the depth buffer?
+bool depthblur = true; //blur the depth buffer?
 float dbsize = 1; //depthblursize
 
 /*

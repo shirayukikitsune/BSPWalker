@@ -216,12 +216,12 @@ void PostProcessEffectChain::initializeGL()
     edgeEffect->create();
     addEffect(edgeEffect);
 
-    GammaCorrectionEffect *gamma = new GammaCorrectionEffect;
+    /*GammaCorrectionEffect *gamma = new GammaCorrectionEffect;
     gamma->setGammaFactor(QVector3D(1.8f, 1.8f, 1.8f));
     gamma->create();
-    addEffect(gamma);
+    addEffect(gamma);*/
 
-    DepthOfFieldEffect *dofEffect = new DepthOfFieldEffect;
+    /*DepthOfFieldEffect *dofEffect = new DepthOfFieldEffect;
     dofEffect->create();
     addEffect(dofEffect);
 

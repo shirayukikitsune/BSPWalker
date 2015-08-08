@@ -199,6 +199,12 @@ typedef struct {
     int			patchHeight;
 } dsurface_t;
 
+typedef struct {
+    int             clusterNum;
+    int             clusterSize;
+    unsigned char*  bitset;
+} dvisdata_t;
+
 // Disable alignment options
 #pragma pack(pop)
 
